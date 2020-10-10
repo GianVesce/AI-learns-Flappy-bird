@@ -1,31 +1,35 @@
 package Game;
 
-import java.awt.Graphics;
-import java.awt.Rectangle;
+import javax.imageio.ImageIO;
+import java.awt.*;
+import java.io.File;
+import java.io.IOException;
 
 public class Base extends GameObject{
+	Image sprite;
+	String spritePath;
 
-	public Base(Rectangle bounds) {
+	public Base(Rectangle bounds, String spritePath) {
 		super(bounds);
-		// TODO Auto-generated constructor stub
+		this.spritePath = spritePath;
 	}
 
 	@Override
 	void initialize() {
-		// TODO Auto-generated method stub
-		
+		try {
+			sprite = ImageIO.read(new File(spritePath));
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 
 	@Override
 	void update() {
-		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
 	void render(Graphics g) {
-		// TODO Auto-generated method stub
-		
+		g.drawImage(sprite, bounds.x, bounds.y, bounds.width, bounds.height, null);
 	}
-
 }

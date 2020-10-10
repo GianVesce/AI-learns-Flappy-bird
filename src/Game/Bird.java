@@ -12,32 +12,43 @@ import javax.imageio.ImageIO;
 public class Bird extends GameObject{
 	private Image sprite;
 	private String spritePath;
-	
+
+	private double yVelocity;
+	private final double gravityForce = 0.25;
+	private double flapForce = 4;
+
 	public Bird(Rectangle size, String spritePath) {
 		super(size);
-		
+
 		this.spritePath = spritePath;
+		yVelocity = 0;
 	}
 
 	@Override
 	void initialize() {
-		// TODO Auto-generated method stub
 		try {
 			sprite = ImageIO.read(new File(spritePath));
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
 
 	@Override
 	void update() {
-		// TODO Auto-generated method stub
-		
+		//Add the gravity to the bird's y velocity
+		yVelocity += gravityForce;
+
+		//Makes the bird go down based on his y velocity
+		bounds.y+= yVelocity;
 	}
 
 	@Override
 	void render(Graphics g) {
 		g.drawImage(sprite, bounds.x, bounds.y, bounds.width, bounds.height, null);
+	}
+
+	//The method that makes the bird jump
+	void flap() {
+		yVelocity -= flapForce;
 	}
 }

@@ -31,10 +31,11 @@ public class Main {
         renderingPanel.initialize();
         window.add(renderingPanel);
         
-        //Makes the graphics thread run
-        Thread graphicsThread = new Thread(renderingPanel);
-        graphicsThread.start();
-        
         window.setVisible(true);
+
+        while (true) {
+            //Update the game's engine and graphics
+            renderingPanel.updateGameLoop();
+        }
     }
 }
