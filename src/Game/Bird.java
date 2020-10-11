@@ -15,13 +15,15 @@ public class Bird extends GameObject{
 
 	private double yVelocity;
 	private final double gravityForce = 0.25;
-	private double flapForce = 4;
+	private double currentForce;
+	private double flapForce = 6.5;
 
 	public Bird(Rectangle size, String spritePath) {
 		super(size);
 
 		this.spritePath = spritePath;
 		yVelocity = 0;
+		currentForce = 0;
 	}
 
 	@Override
@@ -36,10 +38,15 @@ public class Bird extends GameObject{
 	@Override
 	void update() {
 		//Add the gravity to the bird's y velocity
-		yVelocity += gravityForce;
+		//Apply the gravity only when the bird has stopped flapping
+		if(currentForce >= 0)
+			yVelocity = -currentForce;
+		else
+			yVelocity += gravityForce;
 
+		currentForce -= gravityForce;
 		//Makes the bird go down based on his y velocity
-		bounds.y+= yVelocity;
+		bounds.y += yVelocity;
 	}
 
 	@Override
@@ -49,6 +56,12 @@ public class Bird extends GameObject{
 
 	//The method that makes the bird jump
 	void flap() {
-		yVelocity -= flapForce;
+		currentForce = flapForce;
+	}
+
+	void reset(int y) {
+		yVelocity = 0;
+		currentForce = 0;
+		bounds.y = y;
 	}
 }

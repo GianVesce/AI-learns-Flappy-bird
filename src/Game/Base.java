@@ -6,8 +6,8 @@ import java.io.File;
 import java.io.IOException;
 
 public class Base extends GameObject{
-	Image sprite;
-	String spritePath;
+	private Image sprite;
+	private String spritePath;
 
 	public Base(Rectangle bounds, String spritePath) {
 		super(bounds);

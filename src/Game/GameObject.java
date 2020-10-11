@@ -18,5 +18,8 @@ public abstract class GameObject {
 	
 	//Handles the rendering of the game object
 	abstract void render(Graphics g);
-	
+
+	boolean collides(GameObject g) {
+		return bounds.intersects(g.bounds);
+	}
 }
