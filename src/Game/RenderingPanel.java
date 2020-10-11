@@ -1,5 +1,7 @@
 package Game;
 
+import NeuralNetwork.NeuralNetwork;
+
 import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
@@ -9,30 +11,46 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map.Entry;
+import java.util.Map;
 
-public class RenderingPanel extends JPanel implements KeyListener {
+public class RenderingPanel extends JPanel {
 	private Dimension panelSize;
 	
 	private GameBackground gb;
 	private Base base;
-	private Bird bird;
+
+	private ArrayList<Bird> aliveBirds;
+
+	private ArrayList<Bird> toKill;
 
 	private ArrayList<Pipes> pipes;
 
-	private boolean isKeyPressed;
-
 	private int gapSize;
 	private int numberOfPipes;
+	private int numberOfBirds;
 
-	private int score;
+	private int generationNumber;
+
+	//Long value => score calculated based on the time alive in the current generation
+	private HashMap<Bird, Long> deadBirds;
+	private long generationStartTime;
+	private double mutationRate;
 
 	//Gap between every pipes
 	private int gap;
 
 	public RenderingPanel() {
-		isKeyPressed = false;
 		pipes = new ArrayList<Pipes>();
 		numberOfPipes = 4;
+
+		aliveBirds = new ArrayList<Bird>();
+		deadBirds = new HashMap<Bird, Long>();
+		toKill = new ArrayList<Bird>();
+
+		numberOfBirds = 100;
+		mutationRate = 0.05;
 	}
 	
 	public void initialize() {
@@ -50,8 +68,30 @@ public class RenderingPanel extends JPanel implements KeyListener {
 
 		double birdWidth = panelSize.height/13;
 		double birdHeight = birdWidth/1.4;
-		bird = new Bird(new Rectangle(panelSize.width/15, (int)((panelSize.height-base.bounds.height)/2 - birdHeight/2), (int)birdWidth, (int)birdHeight), "flappy-bird-assets-master/sprites/bluebird-midflap.png");
-		bird.initialize();
+
+		String[] possibleSpritePath = {
+				"flappy-bird-assets-master/sprites/bluebird-midflap.png",
+				"flappy-bird-assets-master/sprites/redbird-midflap.png",
+				"flappy-bird-assets-master/sprites/yellowbird-midflap.png"
+		};
+
+		Image[] possibleSprites = new Image[possibleSpritePath.length];
+
+		for (int i=0; i< possibleSpritePath.length; i++) {
+			try {
+				possibleSprites[i] = ImageIO.read(new File(possibleSpritePath[i]));
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+
+		for (int i=0; i<numberOfBirds; i++) {
+
+			Bird b = new Bird(new Rectangle(panelSize.width/30, (int)((panelSize.height/2) - (birdHeight/2)), (int)(birdWidth), (int)(birdHeight)), possibleSprites[(int)(Math.random()*possibleSprites.length)]);
+			b.initialize();
+
+			aliveBirds.add(b);
+		}
 
 		for(int i=0; i<numberOfPipes; i++) {
 			Pipes p = new Pipes(new Rectangle(panelSize.width + (gap*i), 0, panelSize.width/15, panelSize.height - baseHeight), "flappy-bird-assets-master/sprites/pipe-green.png", this);
@@ -62,12 +102,14 @@ public class RenderingPanel extends JPanel implements KeyListener {
 			pipes.add(p);
 		}
 
+		generationStartTime = System.nanoTime();
 	}
 	
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
         gb.render(g);
-		bird.render(g);
+		for(Bird b : aliveBirds)
+			b.render(g);
         for(Pipes p : pipes) {
         	p.render(g);
 		}
@@ -76,15 +118,44 @@ public class RenderingPanel extends JPanel implements KeyListener {
     }
 
     public void updateGameLoop() {
-		bird.update();
+		//Check if the generation should advance
+		if(aliveBirds.size() == 0)
+			advanceGeneration();
+
+		//Make the birds decide to flap or not
+		Pipes nextPipe = getMostLeftPipe();
+		for (Bird b : aliveBirds) {
+			b.decide(nextPipe.distanceFromGap(b));
+		}
+
+		//Update the position of the objects
+		for(Bird b : aliveBirds)
+			b.update();
+
 		for(Pipes p : pipes) {
 			p.update();
 		}
 
-		//Check if the bird is dead
-		if(base.collides(bird) || (bird.bounds.y < 0) || getMostLeftPipe().collides(bird)) {
-			reset();
+		//Check which bird has to die
+		for(Bird b : aliveBirds) {
+			if(base.collides(b) || (b.bounds.y < 0) || nextPipe.collides(b)) {
+				toKill.add(b);
+			}
 		}
+
+		//Kill every bird who didn't make it
+		for(Bird b : toKill) {
+			aliveBirds.remove(b);
+			//Assign the birds a score based on how long they survived
+			deadBirds.put(b, System.nanoTime()-generationStartTime);
+		}
+		//Clear the kill list
+		toKill.clear();
+
+		//Check if the bird is dead
+		//if(base.collides(bird) || (bird.bounds.y < 0) || getMostLeftPipe().collides(bird)) {
+		//	reset();
+		//}
 
 		//System.out.println(pipes.topPipeBounds.toString());
 		//System.out.println(pipes.isOutOfLeftMap());
@@ -99,25 +170,60 @@ public class RenderingPanel extends JPanel implements KeyListener {
 		}
 	}
 
-	@Override
-	public void keyTyped(KeyEvent e) {
-
-	}
-
-	@Override
-	public void keyPressed(KeyEvent e) {
-		if((e.getKeyChar() == ' ') && (!isKeyPressed)) {
-			bird.flap();
-			isKeyPressed = true;
+	void advanceGeneration() {
+		//Get the top 10% birds
+		int numberOfBirdsSaved = deadBirds.size()/10;
+		Bird[] savedBirds = new Bird[numberOfBirdsSaved];
+		for(int i=0; i<numberOfBirdsSaved; i++) {
+			savedBirds[i] = getTopBird();
+			deadBirds.remove(savedBirds[i]);
 		}
+
+		//List of the new neural network
+		ArrayList<NeuralNetwork> neuralNetworks = new ArrayList<NeuralNetwork>();
+
+		//Get the birds neural network and makes them reproduce
+		for(int i=0; i<numberOfBirdsSaved; i++) {
+			NeuralNetwork parentNeuralNetwork = savedBirds[i].getNeuralNetwork();
+			NeuralNetwork[] reproducedNeuralNetwork = parentNeuralNetwork.reproduce(numberOfBirdsSaved-1, mutationRate);
+
+			//Add the parent neural network
+			neuralNetworks.add(parentNeuralNetwork);
+
+			//Add the reproduced neural network
+			for(int j=0; j < reproducedNeuralNetwork.length; j++) {
+				neuralNetworks.add(reproducedNeuralNetwork[j]);
+			}
+		}
+
+		//Makes every bird alive
+		for(Bird b : savedBirds) {
+			aliveBirds.add(b);
+		}
+
+		for(Bird b : deadBirds.keySet()) {
+			aliveBirds.add(b);
+		}
+
+		//Assign every bird a new neural network
+		int count = neuralNetworks.size();
+		for(int i=0; i<count; i++) {
+			aliveBirds.get(i).setNeuralNetwork(neuralNetworks.get(i));
+		}
+
+		//Reset the generation
+		reset();
 	}
 
-	@Override
-	public void keyReleased(KeyEvent e) {
-		if(e.getKeyChar() == ' ')
-			isKeyPressed = false;
-		if(e.getKeyChar() == 'r')
-			reset();
+	private Bird getTopBird() {
+		Entry<Bird, Long> highest = null;
+
+		for(Entry<Bird, Long> entry : deadBirds.entrySet()) {
+			if((highest == null) || (entry.getValue() > highest.getValue()))
+				highest = entry;
+		}
+
+		return highest.getKey();
 	}
 
 	private Pipes getMostRightPipe() {
@@ -155,11 +261,13 @@ public class RenderingPanel extends JPanel implements KeyListener {
 	}
 
 	public void reset() {
-		//Reset the bird's and pipe's positon
-		bird.reset((int)((panelSize.height-base.bounds.height)/2 - bird.bounds.height/2));
+		//Reset the birds and pipe's position
+		for (Bird b : aliveBirds)
+			b.reset((int)((panelSize.height-base.bounds.height)/2 - b.bounds.height/2));
 
 		for(int i=0; i<pipes.size(); i++) {
 			pipes.get(i).reset(panelSize.width + (gap*i));
 		}
+		generationStartTime = System.nanoTime();
 	}
 }

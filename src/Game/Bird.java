@@ -1,5 +1,7 @@
 package Game;
 
+import NeuralNetwork.NeuralNetwork;
+
 import java.awt.Graphics;
 import java.awt.Image;
 import java.awt.Rectangle;
@@ -11,29 +13,28 @@ import javax.imageio.ImageIO;
 
 public class Bird extends GameObject{
 	private Image sprite;
-	private String spritePath;
 
 	private double yVelocity;
 	private final double gravityForce = 0.25;
 	private double currentForce;
 	private double flapForce = 6.5;
 
-	public Bird(Rectangle size, String spritePath) {
+	private NeuralNetwork brain;
+
+	public Bird(Rectangle size, Image sprite) {
 		super(size);
 
-		this.spritePath = spritePath;
+		this.sprite = sprite;
 		yVelocity = 0;
 		currentForce = 0;
 	}
 
 	@Override
 	void initialize() {
-		try {
-			sprite = ImageIO.read(new File(spritePath));
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+		//Generate brain
+		this.brain = new NeuralNetwork(2, 6, 1);
 	}
+
 
 	@Override
 	void update() {
@@ -63,5 +64,18 @@ public class Bird extends GameObject{
 		yVelocity = 0;
 		currentForce = 0;
 		bounds.y = y;
+	}
+
+	void decide(double[] distanceFromGap) {
+		if(brain.feedforward(distanceFromGap)[0] >= 0.5)
+			flap();
+	}
+
+	public NeuralNetwork getNeuralNetwork() {
+		return brain;
+	}
+
+	public void setNeuralNetwork(NeuralNetwork neuralNetwork) {
+		this.brain = neuralNetwork;
 	}
 }

@@ -126,4 +126,13 @@ public class Pipes extends GameObject{
         hasBeenPassed = false;
         generateRandomGapHeight();
     }
+
+    public double[] distanceFromGap(Bird b) {
+        double[] distance = new double[2];
+
+        distance[0] = Math.abs(((bounds.x + bounds.width)/2) - (b.bounds.x + b.bounds.width));
+        distance[0] = Math.abs((gapHeight) - ((b.bounds.y + b.bounds.height)/2));
+
+        return distance;
+    }
 }

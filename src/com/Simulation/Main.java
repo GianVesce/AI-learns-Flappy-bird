@@ -29,7 +29,6 @@ public class Main {
         RenderingPanel renderingPanel = new RenderingPanel();
         renderingPanel.setBounds(0, 0, clientArea.width, clientArea.height);
         renderingPanel.initialize();
-        window.addKeyListener(renderingPanel);
         window.add(renderingPanel);
 
         window.setVisible(true);
