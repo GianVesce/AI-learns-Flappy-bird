@@ -49,8 +49,8 @@ public class RenderingPanel extends JPanel {
 		deadBirds = new HashMap<Bird, Long>();
 		toKill = new ArrayList<Bird>();
 
-		numberOfBirds = 100;
-		mutationRate = 0.05;
+		numberOfBirds = 500;
+		mutationRate = 1.7;
 	}
 	
 	public void initialize() {
@@ -163,7 +163,7 @@ public class RenderingPanel extends JPanel {
 
 		repaint();
 		try {
-			Thread.sleep(16);
+			Thread.sleep(1);
 		} catch (InterruptedException e) {
 
 			e.printStackTrace();
@@ -171,45 +171,25 @@ public class RenderingPanel extends JPanel {
 	}
 
 	void advanceGeneration() {
-		//Get the top 10% birds
-		int numberOfBirdsSaved = deadBirds.size()/10;
-		Bird[] savedBirds = new Bird[numberOfBirdsSaved];
-		for(int i=0; i<numberOfBirdsSaved; i++) {
-			savedBirds[i] = getTopBird();
-			deadBirds.remove(savedBirds[i]);
-		}
+		//Makes the top bird reproduce and alive
+		Bird topBird = getTopBird();
+		aliveBirds.add(topBird);
+		deadBirds.remove(topBird);
 
-		//List of the new neural network
-		ArrayList<NeuralNetwork> neuralNetworks = new ArrayList<NeuralNetwork>();
+		//List of the new neural networks
+		NeuralNetwork[] reproducedNetworks = topBird.getNeuralNetwork().reproduce(deadBirds.size(), mutationRate);
 
-		//Get the birds neural network and makes them reproduce
-		for(int i=0; i<numberOfBirdsSaved; i++) {
-			NeuralNetwork parentNeuralNetwork = savedBirds[i].getNeuralNetwork();
-			NeuralNetwork[] reproducedNeuralNetwork = parentNeuralNetwork.reproduce(numberOfBirdsSaved-1, mutationRate);
-
-			//Add the parent neural network
-			neuralNetworks.add(parentNeuralNetwork);
-
-			//Add the reproduced neural network
-			for(int j=0; j < reproducedNeuralNetwork.length; j++) {
-				neuralNetworks.add(reproducedNeuralNetwork[j]);
-			}
-		}
-
-		//Makes every bird alive
-		for(Bird b : savedBirds) {
-			aliveBirds.add(b);
-		}
-
+		//Assign every bird a new neural network except for the top a new neural network
+		int i=0;
 		for(Bird b : deadBirds.keySet()) {
+			b.setNeuralNetwork(reproducedNetworks[i]);
 			aliveBirds.add(b);
+			i++;
 		}
 
-		//Assign every bird a new neural network
-		int count = neuralNetworks.size();
-		for(int i=0; i<count; i++) {
-			aliveBirds.get(i).setNeuralNetwork(neuralNetworks.get(i));
-		}
+		deadBirds.clear();
+
+		System.out.println(aliveBirds.size());
 
 		//Reset the generation
 		reset();
